@@ -1,0 +1,172 @@
+---
+title: "LA Crime Data"
+output: html_document
+date: "2025-03-03"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)  # Loads dplyr, ggplot2, and other useful packages
+library(dplyr)      # Explicitly loads dplyr if needed
+library(Amelia)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cybersecurity_attacks}
+setwd("C:/Users/johna/OneDrive/Documents/1.PHD/PhD_Data_Science/DDS-8501/week2")
+
+df <- read.csv("LA_Crime_data.csv", header = TRUE, sep = ",", stringsAsFactors = TRUE)
+
+#create a random sample of the dataset. 
+A <- 625
+B <- 216
+Randomizer <- A + B
+
+# Generate a random sample of 1000 rows from the dataset
+set.seed(Randomizer) # Set the seed for reproducibility
+sample_size <- 5000
+crime <- df[sample(nrow(df), sample_size, replace = TRUE), ] 
+```
+
+#Convert varaibles. 
+
+```{r as.factor}
+factor_columns <- c("AREA.NAME", "DATE.OCC", "Crm.Cd.Desc", "Mocodes", 
+                    "Status", "Status.Desc", "LOCATION", "Date.Rptd")
+crime[factor_columns] <- lapply(crime[factor_columns], function(col) as.factor(as.character(col)))
+```
+
+#Summary of the data
+```{r Summary}
+
+summary(crime)
+
+```
+
+
+#Mapping missing values.
+```{r Finding missing values}
+#summary(df)
+
+summary(lm(AREA ~ Status.Desc + Crm.Cd.Desc + LOCATION, data = crime))
+
+#summary(lm(Anomaly.Scores ~ IDS.IPS.Alerts + Firewall.Logs + Alerts.Warnings + Malware.Indicators, data = df))
+
+missmap(crime, main= "Missing Data Map", col = c("red","black"), legend = FALSE)
+
+```
+#Identify Rows and Columns with 20% or more Missing values. 
+
+``` {r ID missing columns and rows by 20 percent}
+# 1. IDENTIFY ROWS WITH ≥ 20% MISSING VALUES
+# Calculate percentage of missing values per row
+row_missing_pct <- rowMeans(is.na(crime)) * 100
+
+# Extract rows with 20% or more missing values
+rows_with_20_missing <- crime[row_missing_pct >= 20, ]
+
+# Print number of affected rows
+cat("Number of rows with ≥ 20% missing values:", nrow(rows_with_20_missing), "\n")
+
+# Display affected rows (optional)
+print(rows_with_20_missing)
+
+# 2. IDENTIFY COLUMNS WITH ≥ 20% MISSING VALUES
+# Calculate percentage of missing values per column
+col_missing_pct <- colMeans(is.na(crime)) * 100
+
+# Extract column names with 20% or more missing values
+cols_with_20_missing <- names(crime)[col_missing_pct >= 20]
+
+# Print results
+cat("Columns with ≥ 20% missing values:\n")
+print(cols_with_20_missing)
+```
+
+
+# Handle missing data. 
+``` {r Handle Missing Categorical values}
+# 1. REMOVE ROWS WITH ≥ 20% MISSING VALUES
+# Calculate the percentage of missing values per row
+row_missing_pct <- rowMeans(is.na(crime)) * 100
+
+# Keep only rows with < 20% missing values
+crime_cleaned <- crime[row_missing_pct < 20, ]
+
+# Print the number of rows removed
+cat("Number of rows removed:", nrow(crime) - nrow(crime_cleaned), "\n")
+
+# 2. REMOVE COLUMNS WITH ≥ 20% MISSING VALUES
+# Calculate the percentage of missing values per column
+col_missing_pct <- colMeans(is.na(crime_cleaned)) * 100
+
+# Select columns where missing percentage is < 20%
+crime_cleaned <- crime_cleaned[, col_missing_pct < 20]
+
+# Print the number of columns removed
+cat("Number of columns removed:", ncol(crime) - ncol(crime_cleaned), "\n")
+
+```
+#Imputation
+Here is where the NAs of the data are changed to fit the rest of the dataset. 
+
+```{r Imputation Graph}
+# Check the distribution of numerical columns
+num_cols <- crime_cleaned %>% select(where(is.numeric))
+
+
+num_cols %>%
+  gather() %>%
+  ggplot(aes(value)) +
+  geom_histogram(bins = 30, fill = "blue", alpha = 0.5) +
+  facet_wrap(~ key, scales = "free") +
+  labs(title = "Distribution of Numeric Variables",
+       x = "Value",
+       y = "Frequency")
+
+```
+
+.
+
+
+```{r Imputation}
+
+# Calculate Mean and Median for numeric columns
+num_summary <- num_cols %>%
+  summarise(across(everything(), list(mean = ~mean(.x, na.rm = TRUE),
+                                      median = ~median(.x, na.rm = TRUE),
+                                      missing_pct = ~mean(is.na(.x)) * 100)))
+# IMPUTATION BASED ON DISTRIBUTION
+
+crime_imputed <- crime_cleaned %>%
+  mutate(
+    Vict.Age = ifelse(is.na(Vict.Age), median(Vict.Age, na.rm = TRUE), Vict.Age),  # Using Median due to skewness
+     TIME.OCC= ifelse(is.na(TIME.OCC), mean(TIME.OCC, na.rm = TRUE), TIME.OCC)  # Using Mean due to normality
+  )
+
+# Handle categorical missing values using Mode
+mode_impute <- function(x) {
+  ux <- unique(x[!is.na(x)])  # Get unique non-NA values
+  ux[which.max(tabulate(match(x, ux)))]  # Get most frequent value (mode)
+}
+
+summary(crime_imputed)
+
+```
+
+
+# Verify Data Cleaning
+```{r}
+
+summary(lm(AREA ~ Status.Desc + Crm.Cd.Desc + LOCATION, data = crime_imputed))
+
+#summary(lm(Anomaly.Scores ~ IDS.IPS.Alerts + Firewall.Logs + Alerts.Warnings + Malware.Indicators, data = df))
+
+missmap(crime_imputed, main= "Missing Data Map", col = c("red","black"), legend = FALSE)
+```

@@ -1,0 +1,192 @@
+---
+title: "LA Crime Data Wk4"
+output: html_document
+date: "2025-03-16"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#install.packages("ResourceSelection")
+#install.packages("hrbrthemes")
+
+library(ggplot2)
+library(tidyverse)  # Loads dplyr, ggplot2, and other useful packages
+library(dplyr)      # Explicitly loads dplyr if needed
+library(Amelia)
+library(ResourceSelection)
+library(hrbrthemes)
+library(viridis)
+library(Rmisc)
+```
+
+## R Markdown
+
+```{r cybersecurity_attacks}
+setwd("C:/Users/johna/OneDrive/Documents/1.PHD/PhD_Data_Science/DDS-8501/week2")
+
+df <- read.csv("LA_Crime_data.csv", header = TRUE, sep = ",", stringsAsFactors = TRUE)
+
+#create a random sample of the dataset. 
+A <- 625
+B <- 216
+Randomizer <- A + B
+
+# Generate a random sample of 1000 rows from the dataset
+set.seed(Randomizer) # Set the seed for reproducibility
+sample_size <- 5000
+crime <- df[sample(nrow(df), sample_size, replace = TRUE), ] 
+```
+
+#Convert varaibles. 
+
+```{r as.factor}
+factor_columns <- c("AREA.NAME", "DATE.OCC", "Crm.Cd.Desc", "Mocodes", 
+                    "Status", "Status.Desc", "LOCATION", "Date.Rptd")
+crime[factor_columns] <- lapply(crime[factor_columns], function(col) as.factor(as.character(col)))
+```
+
+
+```{r Summary}
+
+summary(crime)
+
+```
+
+
+
+
+```{r Adding colors}
+suppressPackageStartupMessages(library(ggplot2))
+
+# Increases font size for all ggplot2 plots
+theme_set(theme_gray(base_size=18))
+
+# List of colors
+colors <- c("#1f77b4","#ff7f0e", "#2ca02c", "#d62728",
+            "#9467bd","#8c564b", "#e377c2", "#7f7f7f",
+            "#bcbd22", "#17becf")
+
+```
+
+```{r pressure, echo=FALSE}
+kdepairs(crime[,1:4])
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r adjust the date column to just year}
+
+crime$Date.Rptd <- substr(crime$Date.Rptd, 7, 10)
+
+head(crime)
+
+```
+
+Bellow is the total count for Area in LA and Crime status Code.
+
+``` {r count}
+area_crime = data.frame(table(crime$AREA.NAME, crime$Status))
+
+colnames (area_crime)=c('Area', 'Status', 'Count')
+
+
+
+```
+
+``` {r Stacked Bar Chart of Status and Area}
+ggplot(area_crime, aes (fill=Status, x=Area, y=Count)) +geom_bar(stat='identity' , position='fill') + ylab('Percent') +coord_flip()
+
+```
+
+
+
+
+
+
+``` {r  Multi-Plot Visualization of DR_NO and Date.Rptd}
+
+p1=ggplot(crime, aes(y=DR_NO, x=Date.Rptd))+geom_boxplot(aes(fill=Date.Rptd), notch=TRUE, alpha=.2)+
+
+  ggtitle('Boxplot')+coord_flip()
+
+p3=ggplot(crime, aes(x=DR_NO, group=Date.Rptd))+geom_density(aes(fill=Date.Rptd), alpha=.2, col='black')+
+
+  ggtitle('Density')
+
+p4=ggplot(crime, aes(x=DR_NO))+geom_freqpoly(aes(color=Date.Rptd),alpha=.4)+
+
+  ggtitle('Frequency Polygon')
+
+p2=ggplot(crime, aes(x=DR_NO, group=Date.Rptd))+geom_histogram(aes(fill=Date.Rptd), alpha=.2, col='black')+
+
+  ggtitle('Histogram')
+
+multiplot(p1, p2, p4,p3,cols=2) 
+```
+
+``` {r  Multi-Plot Visualization of DR_NO and Status}
+
+p1=ggplot(crime, aes(y=DR_NO, x=Status))+geom_boxplot(aes(fill=Status), notch=TRUE, alpha=.2)+
+
+  ggtitle('Boxplot')+coord_flip()
+
+p3=ggplot(crime, aes(x=DR_NO, group=Status))+geom_density(aes(fill=Status), alpha=.2, col='black')+
+
+  ggtitle('Density')
+
+p4=ggplot(crime, aes(x=DR_NO))+geom_freqpoly(aes(color=Status),alpha=.4)+
+
+  ggtitle('Frequency Polygon')
+
+p2=ggplot(crime, aes(x=DR_NO, group=Status))+geom_histogram(aes(fill=Status), alpha=.2, col='black')+
+
+  ggtitle('Histogram')
+
+multiplot(p1, p2, p4,p3,cols=2) 
+```
+
+
+``` {r  Multi-Plot Visualization of Crm.Cd.1 and Status}
+
+p1=ggplot(crime, aes(y=Crm.Cd.1, x=Status))+geom_boxplot(aes(fill=Status), notch=TRUE, alpha=.2)+
+
+  ggtitle('Boxplot')+coord_flip()
+
+p3=ggplot(crime, aes(x=Crm.Cd.1, group=Status))+geom_density(aes(fill=Status), alpha=.2, col='black')+
+
+  ggtitle('Density')
+
+p4=ggplot(crime, aes(x=Crm.Cd.1))+geom_freqpoly(aes(color=Status),alpha=.4)+
+
+  ggtitle('Frequency Polygon')
+
+p2=ggplot(crime, aes(x=Crm.Cd.1, group=Status))+geom_histogram(aes(fill=Status), alpha=.2, col='black')+
+
+  ggtitle('Histogram')
+
+multiplot(p1, p2, p4,p3,cols=2) 
+```
+
+
+``` {r  Multi-Plot Visualization of Crm.Cd.1 and Date.Rptd}
+
+p1=ggplot(crime, aes(y=Crm.Cd.1, x=Date.Rptd))+geom_boxplot(aes(fill=Date.Rptd), notch=TRUE, alpha=.2)+
+
+  ggtitle('Boxplot')+coord_flip()
+
+p3=ggplot(crime, aes(x=Crm.Cd.1, group=Date.Rptd))+geom_density(aes(fill=Date.Rptd), alpha=.2, col='black')+
+
+  ggtitle('Density')
+
+p4=ggplot(crime, aes(x=Crm.Cd.1))+geom_freqpoly(aes(color=Date.Rptd),alpha=.4)+
+
+  ggtitle('Frequency Polygon')
+
+p2=ggplot(crime, aes(x=Crm.Cd.1, group=Date.Rptd))+geom_histogram(aes(fill=Date.Rptd), alpha=.2, col='black')+
+
+  ggtitle('Histogram')
+
+multiplot(p1, p2, p4,p3,cols=2) 
+```

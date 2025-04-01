@@ -1,0 +1,239 @@
+---
+title: "Week3"
+output: html_document
+date: "2025-03-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#install.packages("Rmisc")
+#install.packages("qqplotr")
+#install.packages("gridExtra")
+
+library(tidyverse)  # Loads dplyr, ggplot2, and other useful packages
+library(dplyr)      # Explicitly loads dplyr if needed
+library(Rmisc)
+library(qqplotr)
+library(gridExtra)
+```
+
+## R Markdown
+
+
+```{r cybersecurity_attacks}
+setwd("C:/Users/johna/OneDrive/Documents/1.PHD/PhD_Data_Science/DDS-8501/week2")
+
+df <- read.csv("LA_Crime_data.csv", header = TRUE, sep = ",", stringsAsFactors = TRUE)
+
+#create a random sample of the dataset. 
+A <- 625
+B <- 216
+Randomizer <- A + B
+
+# Generate a random sample of 1000 rows from the dataset
+set.seed(Randomizer) # Set the seed for reproducibility
+sample_size <- 5000
+crime <- df[sample(nrow(df), sample_size, replace = TRUE), ] 
+
+
+```
+```{r Adding colors}
+suppressPackageStartupMessages(library(ggplot2))
+
+# Increases font size for all ggplot2 plots
+theme_set(theme_gray(base_size=18))
+
+# List of colors
+colors <- c("#1f77b4","#ff7f0e", "#2ca02c", "#d62728",
+            "#9467bd","#8c564b", "#e377c2", "#7f7f7f",
+            "#bcbd22", "#17becf")
+
+```
+
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r as.factor}
+factor_columns <- c("AREA.NAME", "DATE.OCC", "Crm.Cd.Desc", "Mocodes", 
+                    "Status", "Status.Desc", "LOCATION", "Date.Rptd")
+crime[factor_columns] <- lapply(crime[factor_columns], function(col) as.factor(as.character(col)))
+
+head(crime)
+
+```
+
+## Importance of Univariate Data Visualization
+
+Univariate data visualization allows the for the isolation of a single variable to be analyzed to determine how each variable interacts with other variables or what messages can be gathered from the single variable (Volckens, 2024). Univariate data visualization can help with the creation of new variables or features. 
+Creating Visualizations of the data helps with identifying patterns such as normality, skewness, and or uniformity in the data. Univariate data visualization allows for the detection of outliers and run quick central tendency assessments. 
+
+
+
+
+```{r Crime.Status Bar Chart-Cat, echo=FALSE}
+crime |>
+  ggplot(aes(x = Status)) +
+  geom_bar(aes(fill = Status), color = "black")
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r Crime.AREA.NAME Bar Chart-Cat, echo=FALSE}
+crime |>
+  ggplot(aes(x = AREA.NAME)) +
+  geom_bar(aes(fill = AREA.NAME), color = "black")+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+```
+
+```{r Crime.Vict.Desc Bar Chart-Cat, echo=FALSE}
+crime |>
+  ggplot(aes(x = Vict.Descent)) +
+  geom_bar(aes(fill = Vict.Descent), color = "black")
+```
+
+
+``` {r Crime.VIC.AGE Histogram-Quant}
+# Create a histogram for years of education
+crime |>
+  ggplot(aes(x = Vict.Age)) +
+  # Change the number of bins, fill shading, and outline color
+  # Colors may be listed by name ("Purple") or in hex format ("#1f77b4")
+  geom_histogram(bins = 10, fill = "#9467bd", color = "black") +
+  # Add axis labels
+  labs(x = "Victim Age", y = "Count")
+
+```
+
+``` {r Crime.VIC.AGE Boxplot-Quant}
+# Create a box plot for years
+crime |>
+  ggplot(aes(x = Vict.Age)) +
+  geom_boxplot(fill = "#17becf", color = "black") +
+  labs(x = "Age of Victims")
+
+```
+
+``` {r Crime.VICT.AGE Density-Quant}
+
+# Create a density plot for years
+crime |>
+  ggplot(aes(x = Vict.Age)) +
+  geom_density(fill = "#1f77b4", color = "black") +
+  labs(x = "Age of Victims", y = "Density")
+
+```
+
+``` {r Crime.VIC.AGE Probably Plot}
+
+# plotting data with proper labels 
+# And adding line with proper properties
+qqplot <- ggplot(crime, aes(sample = Vict.Age)) +
+  stat_qq() +
+  stat_qq_line(colour = "blue") +
+  ggtitle("Normal Probability Plot of Victim Age") +
+  theme_minimal()
+
+# Display the plot
+print(qqplot)
+
+```
+``` {r 4 plot for Crime.Vict.Age}
+
+
+# Create plots
+p1 <- ggplot(crime, aes(x = Crm.Cd.1, y = Vict.Age)) +
+  geom_line(color = "blue") +
+  ggtitle("Run")
+
+p2 <- ggplot(crime, aes(x = Vict.Age)) +
+  geom_histogram(fill = "blue", color = "black", bins = 30) +
+  ggtitle("Histogram")
+
+p3 <- ggplot(crime, aes(x = dplyr::lag(Vict.Age), y = Vict.Age)) +
+  geom_point(color = "red") +
+  ggtitle("Lag Plot")
+
+p4 <- ggplot(crime, aes(sample = scale(Vict.Age))) +
+  stat_qq() +
+  stat_qq_line(color = "red") +
+  ggtitle("Normal Probability Plot")
+
+# Arrange the plots in a 2x2 grid
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+```
+
+
+``` {r Crime.Crm.Cd.1 Histogram-Quant}
+# Create a histogram for years of education
+crime |>
+  ggplot(aes(x = Crm.Cd.1)) +
+  # Change the number of bins, fill shading, and outline color
+  # Colors may be listed by name ("Purple") or in hex format ("#1f77b4")
+  geom_histogram(bins = 10, fill = "#9467bd", color = "black") +
+  # Add axis labels
+  labs(x = "Crime Code", y = "Count")
+
+```
+
+``` {r Crime.Crm.Cd.1 Boxplot-Quant}
+# Create a box plot for years
+crime |>
+  ggplot(aes(x = Crm.Cd.1)) +
+  geom_boxplot(fill = "#17becf", color = "black") +
+  labs(x = "Crime Code")
+
+```
+``` {r Crime.Crm.Cd.1 Density-Quant}
+
+# Create a density plot for years
+crime |>
+  ggplot(aes(x = Crm.Cd.1)) +
+  geom_density(fill = "#1f77b4", color = "black") +
+  labs(x = "Crime Code", y = "Density")
+
+```
+``` {r Crime.Crm.Cd.1 Probably Plot}
+
+# plotting data with proper labels 
+# And adding line with proper properties
+qqplot <- ggplot(crime, aes(sample = Crm.Cd.1)) +
+  stat_qq() +
+  stat_qq_line(colour = "blue") +
+  ggtitle("Normal Probability Plot of Crime Codes") +
+  theme_minimal()
+
+# Display the plot
+print(qqplot)
+
+```
+
+``` {r 4 plot for Crime.Crm.Cd.1}
+
+
+# Create plots
+p1 <- ggplot(crime, aes(x = Vict.Age, y = Crm.Cd.1)) +
+  geom_line(color = "blue") +
+  ggtitle("Run")
+
+p2 <- ggplot(crime, aes(x = Crm.Cd.1)) +
+  geom_histogram(fill = "blue", color = "black", bins = 30) +
+  ggtitle("Histogram")
+
+p3 <- ggplot(crime, aes(x = dplyr::lag(Crm.Cd.1), y = Crm.Cd.1)) +
+  geom_point(color = "red") +
+  ggtitle("Lag Plot")
+
+p4 <- ggplot(crime, aes(sample = scale(Crm.Cd.1))) +
+  stat_qq() +
+  stat_qq_line(color = "red") +
+  ggtitle("Normal Probability Plot")
+
+# Arrange the plots in a 2x2 grid
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+```
+

@@ -1,0 +1,255 @@
+---
+title: "Week 5 Descriptive Statistics"
+output: html_document
+date: "2025-03-23"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#install.packages("ResourceSelection")
+#install.packages("hrbrthemes")
+
+library(ggplot2)
+library(tidyverse)  # Loads dplyr, ggplot2, and other useful packages
+library(dplyr)      # Explicitly loads dplyr if needed
+library(Amelia)
+library(ResourceSelection)
+library(hrbrthemes)
+library(viridis)
+library(moments)
+
+```
+
+
+
+```{r cybersecurity_attacks}
+setwd("C:/Users/johna/OneDrive/Documents/1.PHD/PhD_Data_Science/DDS-8501/week2")
+
+df <- read.csv("LA_Crime_data.csv", header = TRUE, sep = ",", stringsAsFactors = TRUE)
+
+#create a random sample of the dataset. 
+A <- 625
+B <- 216
+Randomizer <- A + B
+
+# Generate a random sample of 1000 rows from the dataset
+set.seed(Randomizer) # Set the seed for reproducibility
+sample_size <- 5000
+crime <- df[sample(nrow(df), sample_size, replace = TRUE), ] 
+```
+
+
+
+```{r as.factor}
+factor_columns <- c("AREA.NAME", "DATE.OCC", "Crm.Cd.Desc", "Mocodes", 
+                    "Status", "Status.Desc", "LOCATION", "Date.Rptd")
+crime[factor_columns] <- lapply(crime[factor_columns], function(col) as.factor(as.character(col)))
+```
+
+```{r Summary}
+
+summary(crime)
+
+``` 
+#Univariate Descriptive Statistics for Quantitative Variables.
+
+##Victim's Age
+
+
+```{r Median Victim Age}
+median(crime$Vict.Age)
+
+```
+
+###Mode
+
+```{r Mean Victim Age}
+mean(crime$Vict.Age)
+
+```
+###Standard Deviation
+
+```{r Standard Deviation Victim Age}
+sd(crime$Vict.Age)
+
+```
+###Range
+
+```{r Range for Victim Age}
+max(crime$Vict.Age) -min(crime$Vict.Age)
+
+range(crime$Vict.Age)
+```
+###Interquartile Range
+
+```{r IQR Victim Age}
+quantile(crime$Vict.Age)
+
+```
+
+```{r Victim Age boxplot}
+boxplot(crime$Vict.Age,
+        main = "Boxplot of Vict.Age",
+        ylab = "Age",
+        col = "lightblue")
+
+```
+###Variance
+
+```{r Variance Victim Age}
+var(crime$Vict.Age)
+```
+###Skewness and Kurtosis
+
+```{r Skewness and Kurtosis Victim Age}
+skewness(crime$Vict.Age)
+kurtosis(crime$Vict.Age)
+```
+
+
+##Officer Report Time
+
+###Median
+
+```{r Median Officer report time}
+median(crime$TIME.OCC)
+
+```
+
+###Mean
+
+```{r Mean Officer report rime}
+mean(crime$TIME.OCC)
+
+```
+
+### Standard Deviation 
+
+```{r Standard Deviation Officer report time}
+sd(crime$TIME.OCC)
+```
+
+###Range
+
+```{r Range Officer report time}
+max(crime$TIME.OCC) -min(crime$TIME.OCC)
+
+range(crime$TIME.OCC)
+```
+
+###Interquartile Range
+
+```{r IQR Officer report time}
+quantile(crime$TIME.OCC)
+```
+
+```{r Officer report time boxplot}
+boxplot(crime$TIME.OCC,
+        main = "Boxplot of Time.OCC+",
+        ylab = "Time",
+        col = "lightblue")
+
+```
+
+###Variance
+
+```{r Variance Officer report time}
+var(crime$TIME.OCC)
+```
+
+###Skewness and Kurtosis
+
+```{r Skewness and Kurtosis Officer report time}
+skewness(crime$TIME.OCC)
+kurtosis(crime$TIME.OCC )
+```
+#Univariate Descriptive Statistics for Qualitative Variables.
+
+##Victims Sex
+
+```{r Premis.desc}
+addmargins(table(crime$Vict.Sex))
+```
+
+##Area Name
+
+```{r Area Name}
+addmargins(table(crime$AREA.NAME))
+```
+
+###Victims Decription 
+
+```{r Victim Desc}
+addmargins(table(crime$Vict.Descent))
+```
+#Bivariate Statistics 
+
+##Quantitative Variables
+###Victim Age and Officer Report time.
+
+```{r Victim Age and Office Report time}
+cor_matrix <- cor(
+  crime$Vict.Age, crime$TIME.OCC,
+  use = "complete.obs",         # ignore rows with missing values
+  method = "pearson"            # or "spearman" if you prefer a rank-based correlation
+)
+
+cor_matrix
+
+```
+``` {r correlation }
+cor.test(crime$Vict.Age, crime$TIME.OCC, method = "pearson")
+```
+
+
+
+##Qualitative Variable
+###Area Name and Victim's Description.
+
+```{r drop the null or 0 values}
+crime_clean <- subset(
+  crime,
+  !is.na(Vict.Descent) & !is.na(Vict.Sex) & !is.na(AREA.NAME)
+)
+```
+
+
+
+
+
+```{r Area name and Victim Sex}
+cont_table3 <- table(crime_clean$AREA.NAME, crime_clean$Vict.Descent)
+cont_table3
+```
+
+
+```{r cleaning}
+# 1. Remove rows with Vict.Descent == "-" or NA
+crime_sub <- subset(
+  crime,
+  !is.na(Vict.Descent) & Vict.Descent != "-" & !is.na(AREA.NAME)
+)
+
+# 2. Rebuild the crosstab
+cont_table_clean <- table(crime_sub$AREA.NAME, crime_sub$Vict.Descent)
+#cont_table_clean
+
+
+crime_sub$AREA.NAME    <- droplevels(crime_sub$AREA.NAME)
+crime_sub$Vict.Descent <- droplevels(crime_sub$Vict.Descent)
+
+```
+
+```{r Test}
+cont_table_clean <- table(crime_sub$AREA.NAME, crime_sub$Vict.Descent)
+cont_table_clean
+chisq.test(cont_table_clean)
+```
+#Importance of Statistics and Visualizations
+
+Exploratory Data Analysis (EDA) relies on the combined strengths of visualizations and statistical methods to thoroughly understand data. Visualizations like charts and graphs quickly reveal patterns, trends, and anomalies, providing intuitive insights. Statistics complement these visuals by quantifying and validating these observations, allowing us to confirm the significance and strength of relationships or differences within the data. Together, visuals and statistics ensure our interpretations are grounded not only in intuition but also in rigorous quantitative evidence, making our analysis more reliable and meaningful.
+
+
+
+

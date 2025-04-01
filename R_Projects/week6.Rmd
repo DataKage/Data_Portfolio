@@ -1,0 +1,298 @@
+---
+title: "Week 6 Generate and Apply Transformations and Scaling"
+output: html_document
+date: "2025-03-29"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#install.packages("ResourceSelection")
+#install.packages("hrbrthemes")
+
+library(ggplot2)
+library(tidyverse)  # Loads dplyr, ggplot2, and other useful packages
+library(dplyr)      # Explicitly loads dplyr if needed
+library(Amelia)
+library(ResourceSelection)
+library(hrbrthemes)
+library(viridis)
+library(moments)
+library(tidyverse)
+library(tidymodels)
+
+```
+
+## R Markdown
+
+```{r cybersecurity_attacks}
+setwd("C:/Users/johna/OneDrive/Documents/1.PHD/PhD_Data_Science/DDS-8501/week2")
+
+df <- read.csv("LA_Crime_data.csv", header = TRUE, sep = ",", stringsAsFactors = TRUE)
+
+
+crime <- df
+```
+
+
+```{r as.factor}
+factor_columns <- c("AREA.NAME", "DATE.OCC", "Crm.Cd.Desc", "Mocodes", 
+                    "Status", "Status.Desc", "LOCATION", "Date.Rptd")
+crime[factor_columns] <- lapply(crime[factor_columns], function(col) as.factor(as.character(col)))
+```
+
+
+```{r Summary}
+
+summary(crime)
+
+``` 
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+
+Using the Seed method, Create a dataset for training and one for testing. 
+The Training data is 80% of the overall data and the Test data is 20%. 
+
+```{r Split by seed}
+set.seed(1)
+
+splits_crime <- sample(c(TRUE, FALSE), nrow(crime), replace=TRUE, prob=c(0.8,0.2))
+
+train <- crime[splits_crime, ]
+test <- crime[!splits_crime, ]
+```
+
+Here is where the examination of the Distribution is conducted for each Quantatiative variable.
+
+1. Vict.Age 
+2. Timee.OCC
+3. Crm.Cd
+4. Premis.Cd
+
+
+Different method for transforming data.
+Transforming data is important for the reason of accuracy. Having accurate data to build models is important for many reason but mainly for safety and security. Having dependable models relies on clean and accurate data. Data transformation addresses fundamental challenges in data management through practical utility and operational necessity (Timescale, 2024). 
+
+There are many methods in transforming data. The methods used in this analysis of the quantitative variables of the crime data reported by LAPD are Log Transformation, Mean, Median, Scaling, and Min-Max. Deciding on what is the best method to normalize the data a better understanding of the distribution is needed of each quantitative variable. From the crime data the quantitative variables are TIME.OCC, Vict.AGE, Crm.Cd, and Premis.Cd. 
+
+```{r Examine the Distribution Vict.AGE}
+# Create a histogram for years of education
+train |>
+  ggplot(aes(x = Vict.Age)) +
+  # Change the number of bins, fill shading, and outline color
+  # Colors may be listed by name ("Purple") or in hex format ("#1f77b4")
+  geom_histogram(bins = 10, fill = "#9467bd", color = "black") +
+  # Add axis labels
+  labs(x = "Victim Age", y = "Count")
+
+```
+
+Victim age has a lot of entries for 0. When Analyzing crime, the age of the victim is not always needed since not every crime has an identified victim. 
+
+```{r Examine the Distribution Time.OCC}
+# Create a histogram for years of education
+train |>
+  ggplot(aes(x = TIME.OCC)) +
+  # Change the number of bins, fill shading, and outline color
+  # Colors may be listed by name ("Purple") or in hex format ("#1f77b4")
+  geom_histogram(bins = 15, fill = "#9467bd", color = "black") +
+  # Add axis labels
+  labs(x = "Officer Report time", y = "Count")
+
+```
+Officer Report time has many 0 or Na's entries. This can be problematic due to an inccident being reported and no officer responded. If an Officer did than that officer did not log their report time. 
+
+```{r Examine the Distribution Crm.Cd}
+# Create a histogram for years of education
+train |>
+  ggplot(aes(x = Crm.Cd)) +
+  # Change the number of bins, fill shading, and outline color
+  # Colors may be listed by name ("Purple") or in hex format ("#1f77b4")
+  geom_histogram(bins = 10, fill = "#9467bd", color = "black") +
+  # Add axis labels
+  labs(x = "Crime Code", y = "Count")
+
+```
+Crime code almost has a normal distribution. 
+
+```{r Examine the Distribution Premis.Cd}
+# Create a histogram for years of education
+train |>
+  ggplot(aes(x = Premis.Cd)) +
+  # Change the number of bins, fill shading, and outline color
+  # Colors may be listed by name ("Purple") or in hex format ("#1f77b4")
+  geom_histogram(bins = 10, fill = "#9467bd", color = "black") +
+  # Add axis labels
+  labs(x = "Premis Code", y = "Count")
+
+```
+Premise Code, Is Skewed to the right. 
+
+Transform Time.OCC by converting the 0's/NA's. 
+
+Using the Median of the Officer report time to replace the 0's in the train and test set. 
+
+For figure 2.1, transforms the TIME.OCC variable using the Mean to normalize the data. Expanding the Bin count from 10 to 50 allows for a full 24-hour clock analysis. 
+
+
+``` {r transforming Time.Occ}
+# Convert to numeric first, in case it isn't
+train$TIME.OCC <- as.numeric(as.character(train$TIME.OCC))
+test$TIME.OCC <- as.numeric(as.character(test$TIME.OCC))
+
+# Replace NA and 0 values with median of non-zero, non-NA times
+valid_median <- median(train$TIME.OCC[train$TIME.OCC != 0 & !is.na(train$TIME.OCC)])
+
+# Replace NA and 0 in train
+train$TIME.OCC[is.na(train$TIME.OCC) | train$TIME.OCC == 0] <- valid_median
+
+# Replace NA and 0 in test
+test$TIME.OCC[is.na(test$TIME.OCC) | test$TIME.OCC == 0] <- valid_median
+
+
+```
+
+
+```{r checking for 0s}
+sum(is.na(train$TIME.OCC))     # Should be 0
+sum(train$TIME.OCC == 0)       # Should also be 0
+
+```
+
+
+``` {r  Time.OCC Norm}
+ggplot(train, aes(x = TIME.OCC)) +
+  geom_histogram(bins = 50, fill = "#bcbd22", color = "black") +
+  labs(
+    x = "Officer Report Time (after dropping NA and 0s)",
+    y = "Count",
+    title = "Distribution of Officer Report Time"
+  ) +
+  scale_x_continuous(limits = c(1, 2400), breaks = seq(0, 2400, by = 200)) +
+  geom_vline(xintercept = median(train$TIME.OCC), linetype = "dashed", color = "red") +
+  theme_minimal()
+```
+Note: figure 2.1 shows the normalized distribution or officer report time in a 24 hour scale. The time is displayed in 24 hour form. The red dotted line represents the Mean of the data.
+
+
+Transform Crime Code
+
+
+``` {r Transform Vict.AGE}
+train$Crm.Cd[is.na(train$Crm.Cd)]=log10(na.omit(train$Crm.Cd)) #impute median
+test$Crm.Cd[is.na(test$Crm.Cd)]=log10(na.omit(train$Crm.Cd)) #impute median for test set, avoiding leakage
+
+
+
+```
+
+```{r checking for 0}
+sum(is.na(train$Crm.Cd))     # Should be 0
+sum(train$Crm.Cd == 0)       # Should be 0
+
+
+```
+
+
+``` {r  Histogram of Vict.AGE}
+ggplot(train, aes(x = Crm.Cd, y = after_stat(count / sum(count)))) +
+  geom_histogram(bins = 10, fill = "blue", color = "black") +
+  labs(
+    x = "Crime Code",
+    y = "Proportion",
+    title = "Normalized Distribution of Crime Code"
+  ) +
+  theme_minimal()
+
+
+
+# Create a histogram for years of education
+train |>
+  ggplot(aes(x = Crm.Cd)) +
+  # Change the number of bins, fill shading, and outline color
+  # Colors may be listed by name ("Purple") or in hex format ("#1f77b4")
+  geom_histogram(bins = 10, fill = "lightblue", color = "black") +
+  geom_vline(xintercept = median(train$Crm.Cd), linetype = "dashed", color = "red") +
+  # Add axis labels
+  labs(x = "Crime Code", y = "Count")
+
+
+
+```
+Note: To normalize the crime code variable, the Median was used. The variable was nearly identical to the original. The red dotted line represents the Median of the variable. 
+
+
+``` {r Transform Vict.AGE log function}
+#train$Vict.Age[is.na(train$Vict.Age)]=median(na.omit(train$Vict.Age)) #impute median
+#test$Vict.Age[is.na(test$Vict.Age)]=median(na.omit(train$Vict.Age)) #impute median for test set, avoiding leakage
+
+# Replace NA with log10 of the median (or use mean if you prefer)
+train$Vict.Age <- as.numeric(as.character(train$Vict.Age))
+test$Vict.Age <- as.numeric(as.character(test$Vict.Age))
+
+# Avoid zeros and NAs for log transformation
+valid_train <- train$Vict.Age[train$Vict.Age > 0 & !is.na(train$Vict.Age)]
+valid_test <- test$Vict.Age[test$Vict.Age > 0 & !is.na(test$Vict.Age)]
+
+# Calculate log10 of median
+log_median_train <- log10(median(valid_train))
+
+# Replace NA or 0 with log-median
+train$Vict.Age[is.na(train$Vict.Age) | train$Vict.Age == 0] <- log_median_train
+test$Vict.Age[is.na(test$Vict.Age) | test$Vict.Age == 0] <- log_median_train
+
+```
+
+
+```{r  Vict.AGE}
+ggplot(train, aes(x = Vict.Age, y = after_stat(count / sum(count)))) +
+  geom_histogram(bins = 10, fill = "coral", color = "black") +
+  labs(
+    x = "Victim Age",
+    y = "Proportion",
+    title = "Normalized Distribution of Victim Age"
+  ) +
+  theme_minimal() +
+  geom_vline(xintercept = median(train$Vict.Age), linetype = "dashed", color = "blue") +
+  labs(x = "Victim Age", y = "Count")
+
+```
+Note: Victim ages have some extreme outliers. There are report victims over the age of 100 in the LA area. The dotted blue line represents the Median of the data. 
+
+
+Removing the 0's will make the Victim age a normal Distribution. 
+
+```{r  Min Max for Train}
+min_max_norm <- function(x) {
+  (x - min(x)) / (max(x) - min(x))
+}
+
+train <- train %>%
+  mutate(
+    Vict.Age = min_max_norm(Vict.Age),
+    TIME.OCC = min_max_norm(TIME.OCC),
+    Crm.Cd   = min_max_norm(Crm.Cd)
+  )
+
+head(train)
+```
+Note: Table is the head() results of the Min-Max method conducted on the quantitative variables in the LA crime training dataset. 
+
+
+
+```{r  Min Max for Test}
+test <- test %>%
+  mutate(
+    Vict.Age = min_max_norm(Vict.Age),
+    TIME.OCC = min_max_norm(TIME.OCC),
+    Crm.Cd   = min_max_norm(Crm.Cd)
+  )
+
+head(test)
+
+```
+Note: Table is the head() results of the  Min-Max method conducted on the quantitative variables in the LA crime test dataset. 
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
